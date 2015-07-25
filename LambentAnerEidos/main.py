@@ -63,6 +63,25 @@ class LambentGrid(GridLayout):
         self.grid_get()
 
 
+class LambentTopBarGrid(GridLayout):
+    def __init__(self, **kwargs):
+        self.aether = kwargs.get("aether")
+        self.size_hint_y=None
+        self.height=80
+        self.cols=2
+
+        super(LambentTopBarGrid, self).__init__(**kwargs)
+        self.add_widget(
+            Button(
+                text='FilterS',
+            ))
+        self.add_widget(
+            Button(
+                text='Connection Status',
+            ))
+
+
+
 class LambentLayout(GridLayout):
     def __init__(self, **kwargs):
         self.aether = kwargs.get('aether')
@@ -77,10 +96,8 @@ class LambentLayout(GridLayout):
                 height=80
             ))
         self.add_widget(
-            Button(
-                text='Filters',
-                size_hint_y=None,
-                height=80
+            LambentTopBarGrid(
+                aether=self.aether
             ))
         self.add_widget(
             Button(
