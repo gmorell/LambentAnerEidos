@@ -54,12 +54,17 @@ class AetherZeroConf(object):
         self.layout = kwargs.pop("layout")
         
     def remove_service(self, zeroconf, type, name):
+        # print "service went bye"
         self.layout.tab_widget.remove(name)
 
     def add_service(self, zeroconf, type, name):
         info = zeroconf.get_service_info(type, name)
-        full_addr = "%s:%d" % (socket.inet_ntoa(info.address), info.port)
-        self.layout.tab_widget.insert(host=full_addr, name=info.properties['name'], zcn=name)
+        if info and info.server == "lambentaether-autodisc-0.local.":
+            full_addr = "%s:%d" % (socket.inet_ntoa(info.address), info.port)
+            # print info.type
+            # print 'name'
+            # print info.properties
+            self.layout.tab_widget.insert(host=full_addr, name=info.properties['name'], zcn=name)
 
 # layout objects
 class AetherTabbedPanel(TabbedPanel):
@@ -106,7 +111,18 @@ class LambentGrid(GridLayout):
         self.aether = kwargs.get("aether")
         super(LambentGrid, self).__init__(**kwargs)
         self.cols = 3
+        self.service_wait()
         self.grid_get()
+
+    def service_wait(self):
+        # groce
+        service_found = False
+        while not service_found:
+            try:
+                self.aether.get_available()
+                service_found = True
+            except requests.ConnectionError:
+                pass
 
     def grid_clear(self):
         self.clear_widgets()
