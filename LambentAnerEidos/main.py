@@ -68,7 +68,7 @@ class AetherZeroConf(object):
 
 # layout objects
 class AetherTabbedPanel(TabbedPanel):
-    # do_default_tab = False
+    do_default_tab = False
     # TODO: make the empty thing work okay
     tab_pos = "left_top"
 
@@ -83,6 +83,11 @@ class AetherTabbedPanel(TabbedPanel):
         #         aether=self.aether
         #     ),
         # ))
+        self.waiting_widget = TabbedPanelHeader(
+            text="Waiting",
+            content = Button(text="Waiting For Lambency")
+        )
+        self.waiting = True
 
     def insert(self, host, name, zcn):
         host_plus_protocol = "http://" + host
@@ -97,6 +102,13 @@ class AetherTabbedPanel(TabbedPanel):
             new_tab
         )
 
+        # bit of cleanup
+        self.remove_widget(self.waiting_widget)
+        self.waiting = False
+        if len(self.get_tab_list()) == 1:
+            # only if its the only one. its annoying otherwise
+            self.switch_to(new_tab)
+
     def remove(self, name):
         a = self.aethers.get(name, [])
         if a:
@@ -104,6 +116,14 @@ class AetherTabbedPanel(TabbedPanel):
             self.remove_widget(a[1])
 
             del a
+
+        # add a placeholder
+        l = self.get_tab_list()
+        if len(l) == 0:
+            # add default widget && switch to it
+            self.add_widget(self.waiting_widget)
+            self.switch_to(self.waiting_widget)
+            self.waiting = True
 
 
 class LambentGrid(GridLayout):
