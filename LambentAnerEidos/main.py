@@ -1,4 +1,5 @@
 import kivy
+from kivy.clock import Clock
 from kivy.uix.button import Button
 from kivy.uix.gridlayout import GridLayout
 from kivy.app import App
@@ -9,6 +10,8 @@ import socket
 from zeroconf import Zeroconf, ServiceBrowser
 
 kivy.require('1.8.0') # replace with your current kivy version !
+
+__version__ = "0.0.1"
 
 import random
 import requests
@@ -42,6 +45,11 @@ class AetherServiceObject(object):
         val = requests.get(target).json()
         return val['available_progs']
 
+    def get_status(self):
+        target = self.host + "/status"
+        val = requests.get(target).json()
+        return val['running']
+
     def post_program_change(self, program_string):
         target = self.host + "/set?prog=" + program_string
         print target
@@ -61,15 +69,14 @@ class AetherZeroConf(object):
         info = zeroconf.get_service_info(type, name)
         if info and info.server == "lambentaether-autodisc-0.local.":
             full_addr = "%s:%d" % (socket.inet_ntoa(info.address), info.port)
-            # print info.type
-            # print 'name'
-            # print info.properties
+            print info.type
+            print full_addr
+            print info.properties
             self.layout.tab_widget.insert(host=full_addr, name=info.properties['name'], zcn=name)
 
 # layout objects
 class AetherTabbedPanel(TabbedPanel):
     do_default_tab = False
-    # TODO: make the empty thing work okay
     tab_pos = "left_top"
 
     tab_height = 80
@@ -87,12 +94,20 @@ class AetherTabbedPanel(TabbedPanel):
             text="Waiting",
             content = Button(text="Waiting For Lambency")
         )
+        self.add_widget(self.waiting_widget)
         self.waiting = True
 
     def insert(self, host, name, zcn):
         host_plus_protocol = "http://" + host
         new_aether = AetherServiceObject(host=host_plus_protocol, name=name, zcn=zcn)
-        new_grid = LambentGrid(aether=new_aether)
+        # get grids
+        grid_settings = LambentTopBarInsideTabGrid(aether=new_aether)
+        grid_buttons = LambentGrid(aether=new_aether)
+        new_grid = LambentGridHolderWithControls(
+            aether=new_aether,
+            ctlgrid=grid_settings,
+            btngrid=grid_buttons
+        )
         new_tab = TabbedPanelHeader(
                 text=name,
                 content = new_grid
@@ -125,6 +140,13 @@ class AetherTabbedPanel(TabbedPanel):
             self.switch_to(self.waiting_widget)
             self.waiting = True
 
+class LambentGridHolderWithControls(GridLayout):
+    def __init__(self, **kwargs):
+        self.aether = kwargs.get("aether")
+        super(LambentGridHolderWithControls, self).__init__(**kwargs)
+        self.rows = 2
+        self.add_widget(kwargs.get("ctlgrid"))
+        self.add_widget(kwargs.get("btngrid"))
 
 class LambentGrid(GridLayout):
     def __init__(self,**kwargs):
@@ -162,7 +184,10 @@ class LambentTopBarGrid(GridLayout):
         self.aether = kwargs.get("aether")
         self.size_hint_y=None
         self.height=80
-        self.cols=3
+        # self.cols=3
+
+        self.width=80
+        self.cols = 1
 
         super(LambentTopBarGrid, self).__init__(**kwargs)
         self.add_widget(
@@ -173,29 +198,91 @@ class LambentTopBarGrid(GridLayout):
                 size_hint_y=None,
                 height=80
             ))
+        # self.add_widget(
+        #     Button(
+        #         text='FilterS',
+        #         size_hint_y=None,
+        #         height=80
+        #     ))
+        # self.add_widget(
+        #     Button(
+        #         text='Connection Status',
+        #         size_hint_y=None,
+        #         height=80
+        #     ))
+
+class LambentSpeedGrid(GridLayout):
+    def __init__(self, **kwargs):
+        self.rows=2
+        self.size_hint_x=None
+        self.width=90
+        super(LambentSpeedGrid, self).__init__(**kwargs)
+        self.add_widget(
+            Button(
+                text="+",
+                # size_hint_x=None,
+                # width=30,
+            )
+        )
+        self.add_widget(
+            Button(
+                text="-",
+                # size_hint_x=None,
+                # width=30,
+            )
+        )
+class LambentTopBarInsideTabGrid(GridLayout):
+    def __init__(self, **kwargs):
+        self.aether = kwargs.get("aether")
+        self.size_hint_y=None
+        self.height=60
+        self.cols=4
+        super(LambentTopBarInsideTabGrid, self).__init__(**kwargs)
+        self.status_button = Button(
+            text='Connection Status Pending',
+            size_hint_y=None,
+            height=self.height
+        )
+        self.statusclock = Clock.schedule_interval(self.set_status_button_text, 0.5)
         self.add_widget(
             Button(
                 text='FilterS',
                 size_hint_y=None,
-                height=80
+                height=self.height,
+                size_hint_x=None,
+                width=100,
             ))
         self.add_widget(
+            self.status_button
+            )
+        self.add_widget(
             Button(
-                text='Connection Status',
-                size_hint_y=None,
-                height=80
-            ))
+                text='-',
+                size_hint_x=None,
+                width=60,
+            )
+        )
+        self.add_widget(
+            Button(
+                text='+',
+                size_hint_x=None,
+                width=60,
+            )
+        )
 
+    def set_status_button_text(self, x):
+        state = self.aether.get_status()
+        self.status_button.text = "Currently Running: %s " % state
 
 class LambentLayout(GridLayout):
     def __init__(self, **kwargs):
         self.aether = kwargs.get('aether')
         super(LambentLayout, self).__init__(**kwargs)
-        self.rows = 2
-        self.add_widget(
-            LambentTopBarGrid(
-                aether=self.aether
-            ))
+        self.rows = 1
+        # self.add_widget(
+        #     LambentTopBarGrid(
+        #         aether=self.aether
+        #     ))
 
         self.tab_widget = AetherTabbedPanel(
             aether=self.aether
